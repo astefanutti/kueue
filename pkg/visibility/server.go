@@ -20,17 +20,17 @@ import (
 	"net"
 	"strings"
 
-	"sigs.k8s.io/kueue/apis/visibility/v1alpha1"
-	generatedopenapi "sigs.k8s.io/kueue/apis/visibility/v1alpha1/openapi"
-	"sigs.k8s.io/kueue/pkg/queue"
-	"sigs.k8s.io/kueue/pkg/visibility/api"
-
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/client-go/pkg/version"
 	_ "k8s.io/component-base/metrics/prometheus/restclient" // for client-go metrics registration
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"sigs.k8s.io/kueue/apis/visibility/v1alpha1"
+	generatedopenapi "sigs.k8s.io/kueue/apis/visibility/v1alpha1/openapi"
+	"sigs.k8s.io/kueue/pkg/queue"
+	"sigs.k8s.io/kueue/pkg/visibility/api"
 )
 
 var (
@@ -47,12 +47,11 @@ type server struct {
 
 // CreateAndStartVisibilityServer creates visibility server injecting KueueManager and starts it
 func CreateAndStartVisibilityServer(kueueMgr *queue.Manager, ctx context.Context) {
-	config := newVisibilityServerConfig()
-	if err := applyVisibilityServerOptions(config); err != nil {
-		setupLog.Error(err, "Unable to apply VisibilityServerOptions")
-	}
+	CreateAndStartVisibilityServerForConfig(CreateVisibilityServerConfig(), kueueMgr, ctx)
+}
 
-	visibilityServer, err := config.Complete().New("visibility-server", genericapiserver.NewEmptyDelegate())
+func CreateAndStartVisibilityServerForConfig(config genericapiserver.CompletedConfig, kueueMgr *queue.Manager, ctx context.Context) {
+	visibilityServer, err := config.New("visibility-server", genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		setupLog.Error(err, "Unable to create visibility server")
 	}
@@ -65,6 +64,15 @@ func CreateAndStartVisibilityServer(kueueMgr *queue.Manager, ctx context.Context
 	if err := s.GenericAPIServer.PrepareRun().Run(ctx.Done()); err != nil {
 		setupLog.Error(err, "Error running visibility server")
 	}
+}
+
+func CreateVisibilityServerConfig() genericapiserver.CompletedConfig {
+	config := newVisibilityServerConfig()
+	if err := applyVisibilityServerOptions(config); err != nil {
+		setupLog.Error(err, "Unable to apply VisibilityServerOptions")
+	}
+
+	return config.Complete()
 }
 
 func applyVisibilityServerOptions(config *genericapiserver.RecommendedConfig) error {
